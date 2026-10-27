@@ -1,0 +1,198 @@
+<Window x:Class="Casa3D.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Casa3D"
+        mc:Ignorable="d"
+        Title="Casa 3D" Height="450" Width="800">
+
+    <Window.Resources>
+
+        <!-- ============================================================
+             MALHAS TRIANGULARES (MeshGeometry3D)
+             Vértices em ordem anti-horária vistos de fora (face da frente)
+             ============================================================ -->
+
+        <!-- Cômodo: 60 (x) x 50 (y) x 60 (z), centrado na origem em x e z,
+             apoiado em y = 0. 5 faces (4 paredes + teto), cada uma com seus
+             próprios vértices para que a iluminação de cada parede seja plana. -->
+        <MeshGeometry3D x:Key="RSRCmeshComodo"
+            Positions="-30,0,30   30,0,30   30,50,30   -30,50,30
+                        30,0,-30  -30,0,-30  -30,50,-30  30,50,-30
+                        30,0,30   30,0,-30   30,50,-30   30,50,30
+                       -30,0,-30  -30,0,30   -30,50,30   -30,50,-30
+                       -30,50,30  30,50,30   30,50,-30   -30,50,-30"
+            TriangleIndices="0,1,2    0,2,3
+                             4,5,6    4,6,7
+                             8,9,10   8,10,11
+                             12,13,14 12,14,15
+                             16,17,18 16,18,19" />
+
+        <!-- Telhado triangular (prisma de base triangular).
+             Cumeeira em y = 85 ao longo do eixo x; beiral em y = 50. -->
+        <MeshGeometry3D x:Key="RSRCmeshTelhado"
+            Positions="-95,50,35   95,50,35   95,85,0   -95,85,0
+                        95,50,-35  -95,50,-35  -95,85,0   95,85,0
+                        95,50,35   95,50,-35   95,85,0
+                       -95,50,-35  -95,50,35   -95,85,0"
+            TriangleIndices="0,1,2    0,2,3
+                             4,5,6    4,6,7
+                             8,9,10
+                             11,12,13" />
+
+        <!-- Chão: plano 20000 x 20000 com coordenadas de textura de 0 a 400,
+             ou seja, a imagem se repete 400 x 400 vezes (cada ladrilho = 50 unidades). -->
+        <MeshGeometry3D x:Key="RSRCmeshChao"
+            Positions="-10000,0,-10000   10000,0,-10000   10000,0,10000   -10000,0,10000"
+            TextureCoordinates="0,0   400,0   400,400   0,400"
+            TriangleIndices="0,3,1   1,3,2" />
+
+        <!-- ============================================================
+             MATERIAIS (DiffuseMaterial) - uma cor sólida por cômodo e telhado
+             ============================================================ -->
+        <DiffuseMaterial x:Key="RSRCmaterialSala"    Brush="#4FC3F7" />
+        <DiffuseMaterial x:Key="RSRCmaterialQuarto"  Brush="#81C784" />
+        <DiffuseMaterial x:Key="RSRCmaterialCozinha" Brush="#FFD54F" />
+        <DiffuseMaterial x:Key="RSRCmaterialTelhado" Brush="#B71C1C" />
+
+        <!-- Textura de granito repetida (TileMode=Tile, ViewportUnits=Absolute) -->
+        <DiffuseMaterial x:Key="RSRCmaterialChao">
+            <DiffuseMaterial.Brush>
+                <ImageBrush ImageSource="Assets/granito.jpg"
+                            TileMode="Tile"
+                            ViewportUnits="Absolute"
+                            RenderOptions.BitmapScalingMode="HighQuality" />
+            </DiffuseMaterial.Brush>
+        </DiffuseMaterial>
+
+    </Window.Resources>
+
+    <!-- ============================================================
+         ANIMAÇÕES (iniciam quando a janela é carregada e rodam em loop)
+         ============================================================ -->
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+
+                    <!-- Câmera: arco de 180° em 5 s; ao terminar volta pelo mesmo
+                         caminho (AutoReverse) e repete para sempre -->
+                    <DoubleAnimation Storyboard.TargetName="CameraRotation"
+                                     Storyboard.TargetProperty="Angle"
+                                     From="0" To="-180"
+                                     Duration="0:0:5"
+                                     AutoReverse="True"
+                                     RepeatBehavior="Forever" />
+
+                    <!-- Sol 1: 360° em 10 s num sentido -->
+                    <DoubleAnimation Storyboard.TargetName="Sol1Rotation"
+                                     Storyboard.TargetProperty="Angle"
+                                     From="0" To="360"
+                                     Duration="0:0:10"
+                                     RepeatBehavior="Forever" />
+
+                    <!-- Sol 2: 360° em 10 s no sentido oposto -->
+                    <DoubleAnimation Storyboard.TargetName="Sol2Rotation"
+                                     Storyboard.TargetProperty="Angle"
+                                     From="0" To="-360"
+                                     Duration="0:0:10"
+                                     RepeatBehavior="Forever" />
+
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+
+    <Grid Background="LightSkyBlue">
+        <Viewport3D>
+
+            <!-- Câmera perspectiva: no nível da casa (y = 42), direção horizontal (0,0,-1).
+                 A RotateTransform3D gira a câmera em torno do eixo X que passa pelo
+                 centro da casa (0,42,0): começa na frente (+z), passa por cima e
+                 termina atrás (-z) com a rotação de -180°. -->
+            <Viewport3D.Camera>
+                <PerspectiveCamera
+                    Position="0,42,330"
+                    LookDirection="0,0,-1"
+                    UpDirection="0,1,0"
+                    NearPlaneDistance="1"
+                    FarPlaneDistance="40000"
+                    FieldOfView="45">
+                    <PerspectiveCamera.Transform>
+                        <RotateTransform3D CenterX="0" CenterY="42" CenterZ="0">
+                            <RotateTransform3D.Rotation>
+                                <AxisAngleRotation3D x:Name="CameraRotation" Axis="1,0,0" Angle="0" />
+                            </RotateTransform3D.Rotation>
+                        </RotateTransform3D>
+                    </PerspectiveCamera.Transform>
+                </PerspectiveCamera>
+            </Viewport3D.Camera>
+
+            <ModelVisual3D>
+                <ModelVisual3D.Content>
+                    <Model3DGroup>
+
+                        <!-- ===== ILUMINAÇÃO =====
+                             Duas luzes direcionais brancas de média intensidade (#808080),
+                             a 30° em relação ao chão (componente vertical -0,5 e horizontal
+                             0,866), apontadas em sentidos opostos (+x e -x).
+                             Cada uma gira 360° em torno do eixo Y (horizontal), em
+                             direções opostas. -->
+                        <DirectionalLight Color="#808080" Direction="0.8660254,-0.5,0">
+                            <DirectionalLight.Transform>
+                                <RotateTransform3D>
+                                    <RotateTransform3D.Rotation>
+                                        <AxisAngleRotation3D x:Name="Sol1Rotation" Axis="0,1,0" Angle="0" />
+                                    </RotateTransform3D.Rotation>
+                                </RotateTransform3D>
+                            </DirectionalLight.Transform>
+                        </DirectionalLight>
+
+                        <DirectionalLight Color="#808080" Direction="-0.8660254,-0.5,0">
+                            <DirectionalLight.Transform>
+                                <RotateTransform3D>
+                                    <RotateTransform3D.Rotation>
+                                        <AxisAngleRotation3D x:Name="Sol2Rotation" Axis="0,1,0" Angle="0" />
+                                    </RotateTransform3D.Rotation>
+                                </RotateTransform3D>
+                            </DirectionalLight.Transform>
+                        </DirectionalLight>
+
+                        <!-- ===== CHÃO texturizado ===== -->
+                        <GeometryModel3D Geometry="{StaticResource RSRCmeshChao}"
+                                         Material="{StaticResource RSRCmaterialChao}" />
+
+                        <!-- ===== CÔMODOS (mesma malha, reposicionada com TranslateTransform3D) ===== -->
+                        <GeometryModel3D Geometry="{StaticResource RSRCmeshComodo}"
+                                         Material="{StaticResource RSRCmaterialSala}">
+                            <GeometryModel3D.Transform>
+                                <TranslateTransform3D OffsetX="-60" OffsetY="0" OffsetZ="0" />
+                            </GeometryModel3D.Transform>
+                        </GeometryModel3D>
+
+                        <GeometryModel3D Geometry="{StaticResource RSRCmeshComodo}"
+                                         Material="{StaticResource RSRCmaterialQuarto}">
+                            <GeometryModel3D.Transform>
+                                <TranslateTransform3D OffsetX="0" OffsetY="0" OffsetZ="0" />
+                            </GeometryModel3D.Transform>
+                        </GeometryModel3D>
+
+                        <GeometryModel3D Geometry="{StaticResource RSRCmeshComodo}"
+                                         Material="{StaticResource RSRCmaterialCozinha}">
+                            <GeometryModel3D.Transform>
+                                <TranslateTransform3D OffsetX="60" OffsetY="0" OffsetZ="0" />
+                            </GeometryModel3D.Transform>
+                        </GeometryModel3D>
+
+                        <!-- ===== TELHADO triangular ===== -->
+                        <GeometryModel3D Geometry="{StaticResource RSRCmeshTelhado}"
+                                         Material="{StaticResource RSRCmaterialTelhado}" />
+
+                    </Model3DGroup>
+                </ModelVisual3D.Content>
+            </ModelVisual3D>
+
+        </Viewport3D>
+    </Grid>
+</Window>
